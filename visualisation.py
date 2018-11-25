@@ -3,7 +3,7 @@
 """
 Created on Sat Jan  6 10:06:49 2018
 
-@author: aidanrocke
+@author: aidanrocke & ildefonsmagrans
 """
 import numpy as np
 import seaborn as sns

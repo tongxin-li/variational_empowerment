@@ -3,7 +3,7 @@
 """
 Created on Sat Jan 20 18:56:50 2018
 
-@author: aidanrocke
+@author: aidanrocke & ildefonsmagrans
 """
 import numpy as np
 import tensorflow as tf

@@ -3,7 +3,7 @@
 """
 Created on Sun Feb 11 10:32:53 2018
 
-@author: aidanrocke
+@author: aidanrocke & ildefonsmagrans
 """
 
 import random

@@ -3,7 +3,7 @@
 """
 Created on Sat Jan  6 09:55:17 2018
 
-@author: aidanrocke
+@author: aidanrocke & ildefonsmagrans
 """
 
 from distutils.core import setup
