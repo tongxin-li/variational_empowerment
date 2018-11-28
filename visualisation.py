@@ -41,11 +41,13 @@ def variance_progression(X,variances,folder):
     plt.figure(figsize=(10,10))
     plt.style.use('ggplot')
     
-    var = np.mean(np.mean(variances,0),1)
+    ## reshape the variances array:
+    var = np.mean(variances,2)
+        
+    N = np.shape(variances)[0]
     
-    #plt.plot(X,actions[8])
-    for i in range(1,20):
-        plt.plot(X,var[i], color=plt.cm.Blues(i/20), lw=3)
+    for i in range(1,N):
+        plt.plot(X,var[i], color=plt.cm.Blues(i/N), lw=3)
     
     plt.show()
     plt.savefig(folder+"variances"+".png")
@@ -55,11 +57,13 @@ def action_progression(X,actions,folder):
     plt.figure(figsize=(10,10))
     plt.style.use('ggplot')
     
-    act = np.mean(np.mean(actions,0),1)
+    #act = np.mean(np.mean(actions,0),1)
+    act = np.mean(actions,2)
     
-    #plt.plot(X,actions[8])
-    for i in range(1,20):
-        plt.plot(X,act[i], color=plt.cm.Blues(i/20), lw=3)
+    N = np.shape(actions)[0]
+    
+    for i in range(1,N):
+        plt.plot(X,act[i], color=plt.cm.Blues(i/N), lw=3)
     
     plt.show()
     plt.savefig(folder+"actions"+".png")

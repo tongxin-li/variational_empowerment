@@ -17,14 +17,13 @@ from utils import dual_opt, action_states
 from visualisation import heatmap, variance_progression, action_progression
 
 ## set random seed:
-#random.seed(42)
 tf.set_random_seed(42)
 
 # define number of iters:
 horizon = 3
 seed = 42
 bound = 1.0
-iters = 30000 ### must be a perfect square
+iters = 20000 ### must be a perfect square
 batch_size = 50
 
 # define environment:
@@ -35,9 +34,9 @@ def main():
     count, obs = 0, 0
     
     ## define arrays to contain means and variances:
-    actions_, variances_ = np.zeros((10,100,2)), np.zeros((10,100,2))
+    actions_, variances_ = np.zeros((20,10,2)), np.zeros((20,10,2))
     
-    x, y = np.linspace((horizon-1),2*(horizon-1),100), np.array([(horizon-1)]*100)
+    x, y = np.linspace((horizon-1),2*(horizon-1),20), np.array([(horizon-1)]*20)
     X = np.stack((x,y),1)
 
         
@@ -61,9 +60,15 @@ def main():
         
         betas = 1./np.array([min(0.001 + i/iters,1) for i in range(iters)])
         
+        
+        ## define the inverse probability to learn from randomness: 
+        N = min(iters,10000)
+        
+        inverse_prob = np.hstack((1./np.array([min(0.001 + i/N,1) for i in range(N)]),np.ones(iters-N)))
+                
         ### define the optimiser:
-        fast_optimizer = tf.train.AdagradOptimizer(0.001)
-        slow_optimizer = tf.train.AdagradOptimizer(0.001)
+        fast_optimizer = tf.train.AdagradOptimizer(0.01)
+        slow_optimizer = tf.train.AdagradOptimizer(0.01)
         
         train_decoder = fast_optimizer.minimize(decoder_loss)
         
@@ -91,12 +96,12 @@ def main():
                 env.iter = 1          
                 
                 prob = np.random.rand()
-            
-                if prob > 1/betas[count]:
+                            
+                if prob > 1/inverse_prob[count]:
                     actions = A.random_actions()
                 else:
                     actions = A.source_actions(env.state_seq[env.iter])
-                                                    
+                        
                 ## get responses from the environment:
                 env.env_response(actions,A.horizon)
                                     
@@ -118,11 +123,13 @@ def main():
             ## check variances:
             
             if count % 1000 == 0:
-                for j in range(100):
+                for j in range(10):
                     # test the decoder:
                     ss_ = np.concatenate((np.zeros(2),X[j],X[j])).reshape((1,6))
                     mu, log_sigma = A.sess.run([A.decoder_mu,A.decoder_log_sigma], feed_dict={ A.decoder_input_n: ss_})                    
                     actions_[obs][j], variances_[obs][j] = mu[0], np.exp(log_sigma[0])
+                    
+                    print(mu[0])
                     
                 obs += 1
             
