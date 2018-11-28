@@ -6,6 +6,7 @@ Created on Sat Dec 30 10:46:54 2017
 @author: aidanrocke & ildefonsmagrans
 """
 import tensorflow as tf
+import tensorflow_probability as tfp
 import numpy as np
 
 class agent_cognition:
@@ -145,7 +146,7 @@ class agent_cognition:
 
         mu, log_sigma = self.src_mu, self.src_log_sigma
             
-        dist = tf.contrib.distributions.MultivariateNormalDiag(mu, tf.exp(log_sigma))
+        dist = tfp.distributions.MultivariateNormalDiag(mu, tf.exp(log_sigma))
                 
         return tf.log(dist.prob(self.source_action)+tf.constant(1e-8))
         
@@ -183,7 +184,7 @@ class agent_cognition:
         
         mu, log_sigma = self.decoder_mu, self.decoder_log_sigma
                 
-        dist = tf.contrib.distributions.MultivariateNormalDiag(mu, tf.exp(log_sigma))
+        dist = tfp.distributions.MultivariateNormalDiag(mu, tf.exp(log_sigma))
                 
         return dist.log_prob(self.source_action)
     
