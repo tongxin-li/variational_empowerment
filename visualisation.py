@@ -48,7 +48,7 @@ def variance_progression(X,variances,folder):
         plt.plot(X,var[i], color=plt.cm.Blues(i/20), lw=3)
     
     plt.show()
-    #plt.savefig(folder+"variances"+".png")
+    plt.savefig(folder+"variances"+".png")
     
 def action_progression(X,actions,folder):
 
@@ -62,7 +62,7 @@ def action_progression(X,actions,folder):
         plt.plot(X,act[i], color=plt.cm.Blues(i/20), lw=3)
     
     plt.show()
-    #plt.savefig(folder+"actions"+".png")
+    plt.savefig(folder+"actions"+".png")
 
     
 def combined_loss(squared_loss,decoder_loss):

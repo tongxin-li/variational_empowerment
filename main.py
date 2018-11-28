@@ -6,7 +6,7 @@ Created on Sun Feb 11 10:32:53 2018
 @author: aidanrocke & ildefonsmagrans
 """
 
-import random
+#import random
 import tensorflow as tf
 import numpy as np
 
@@ -17,16 +17,18 @@ from utils import dual_opt, action_states
 from visualisation import heatmap, variance_progression, action_progression
 
 ## set random seed:
-random.seed(42)
+#random.seed(42)
 tf.set_random_seed(42)
 
 # define number of iters:
-horizon = 2
-iters = 10000 ### must be a perfect square
+horizon = 3
+seed = 42
+bound = 1.0
+iters = 30000 ### must be a perfect square
 batch_size = 50
 
 # define environment:
-env = square_env(duration=horizon,diameter=0.5,dimension=2*(horizon-1.0))
+env = square_env(duration=horizon,radius=0.5,dimension=2*(horizon-1.0))
 
 def main():
     # the concatenation of a state and action
@@ -41,29 +43,27 @@ def main():
         
     with tf.Session() as sess:
                 
-        A = agent_cognition(horizon,sess,horizon)   
+        A = agent_cognition(horizon,sess,seed,bound)   
             
         ### define the decoder, critic and source:
         log_decoder = A.decoder()
         E = A.empowerment_critic()
         log_source = A.source()
-        map_loss = A.map_decoder_loss()
                 
         # define a placeholder for beta values in the squared loss:
         beta =tf.placeholder(tf.float32, [None, 1])       
         
         ### it might be a good idea to regularise the squared loss:
         squared_loss = tf.reduce_mean(tf.square(beta*log_decoder-E-log_source))
-        decoder_loss = tf.reduce_mean(tf.multiply(tf.constant(-1.0),log_decoder)) + tf.reduce_mean(map_loss)
-        
+        decoder_loss = tf.reduce_mean(tf.multiply(tf.constant(-1.0),log_decoder))
         ### define beta schedule:
         #betas = np.linspace(10,1,iters)
         
-        betas = 1./np.array([min(0.01 + i/iters,1) for i in range(iters)])
+        betas = 1./np.array([min(0.001 + i/iters,1) for i in range(iters)])
         
         ### define the optimiser:
-        fast_optimizer = tf.train.AdagradOptimizer(0.01)
-        slow_optimizer = tf.train.AdagradOptimizer(0.01)
+        fast_optimizer = tf.train.AdagradOptimizer(0.001)
+        slow_optimizer = tf.train.AdagradOptimizer(0.001)
         
         train_decoder = fast_optimizer.minimize(decoder_loss)
         
@@ -90,7 +90,6 @@ def main():
                 ## reset the environment:
                 env.iter = 1          
                 
-                #actions = A.random_actions()
                 prob = np.random.rand()
             
                 if prob > 1/betas[count]:
@@ -129,7 +128,7 @@ def main():
             
             count += 1
             
-            folder = ""
+            folder = "/Users/aidanrockea/Desktop/vime/images/expt_8/"
             
             if count % 500 == 0:   
                 heatmap(0.1,sess,A,E,env,count,folder)
@@ -141,7 +140,7 @@ def main():
                 #potential(0.1,sess,A,E,env,count,folder)
             
         #view_losses(squared_losses,decoder_losses)
-        #plt.plot(decoder_losses)        
+        plt.plot(squared_losses)        
         
         
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ tf.set_random_seed(42)
 # define number of iters:
 horizon = 4
 iters = 10000 ### must be a perfect square
-batch_size = 5
+batch_size = 50
 
 def main():
     # the concatenation of a state and action

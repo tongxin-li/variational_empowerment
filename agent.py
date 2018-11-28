@@ -3,21 +3,23 @@
 """
 Created on Sat Dec 30 10:46:54 2017
 
-@author: aidanrocke 
+@author: aidanrocke & ildefonsmagrans
 """
 import tensorflow as tf
 import numpy as np
 
-# an agent that reasons using a measure of empowerment:
-# we assume that env refers to an initialised environment class:
-
 class agent_cognition:
     
-    def __init__(self,planning_horizon,sess,action_bound):
+    """
+        An agent that reasons using a measure of empowerment. 
+        Here we assume that env refers to an initialised environment class. 
+    """
+    
+    def __init__(self,planning_horizon,sess,seed, bound):
         self.sess = sess
+        self.seed = seed
         self.horizon = planning_horizon        
-        self.action_bound = action_bound
-        self.variance_bound = action_bound
+        self.bound = bound
         
         self.current_state = tf.placeholder(tf.float32, [None, 2])
         self.source_action = tf.placeholder(tf.float32, [None, 2])
@@ -61,7 +63,7 @@ class agent_cognition:
         
         with tf.variable_scope("critic"):
             
-            tf.set_random_seed(42)
+            tf.set_random_seed(self.seed)
     
             w_h = self.init_weights([2,100],"w_h")
             w_h2 = self.init_weights([100,100],"w_h2")
@@ -79,9 +81,14 @@ class agent_cognition:
         
     def source_dist_n(self):
         
+        """
+            This is the per-action source distribution, also known as the 
+            exploration distribution. 
+        """
+        
         with tf.variable_scope("source"):
             
-            tf.set_random_seed(42)
+            tf.set_random_seed(self.seed)
             
             W_h = self.init_weights([4,100],"W_h")
             W_h2 = self.init_weights([100,50],"W_h2")
@@ -96,15 +103,8 @@ class agent_cognition:
             W_mu = self.init_weights([10,2],"W_mu")
             W_sigma = self.init_weights([10,2],"W_sigma")
             
-            mu = tf.multiply(tf.nn.tanh(tf.matmul(eta_net,W_mu)),self.action_bound)
-            log_sigma = tf.multiply(tf.nn.tanh(tf.matmul(eta_net,W_sigma)),self.variance_bound)
-            
-            #mu = tf.matmul(eta_net,W_mu)
-            #log_sigma = tf.matmul(eta_net,W_sigma)
-            
-            ## apply gradient clipping:
-            #mu = tf.clip_by_norm(mu,self.action_bound)
-            #log_sigma = tf.clip_by_norm(log_sigma,self.variance_bound)
+            mu = tf.multiply(tf.nn.tanh(tf.matmul(eta_net,W_mu)),self.bound)
+            log_sigma = tf.multiply(tf.nn.tanh(tf.matmul(eta_net,W_sigma)),self.bound)
         
         return mu, log_sigma
     
@@ -115,10 +115,10 @@ class agent_cognition:
     
     def random_actions(self):
         """
-            This is used to check that the source isn't completely useless. 
+            This baseline is used to check that the source isn't completely useless. 
         """
         
-        return np.random.normal(0,self.action_bound,size = (self.horizon,2))
+        return np.random.normal(0,self.bound,size = (self.horizon,2))
         
     
     def source_actions(self,state):
@@ -151,9 +151,14 @@ class agent_cognition:
         
     def decoder_dist_n(self): 
         
+        """
+            This is the per-action decoder, also known as the 
+            planning distribution. 
+        """
+        
         with tf.variable_scope("decoder"):
             
-            tf.set_random_seed(42)
+            tf.set_random_seed(self.seed)
             
             W_h = self.init_weights([6,100],"W_h")
             W_h2 = self.init_weights([100,50],"W_h2")
@@ -168,14 +173,8 @@ class agent_cognition:
             W_mu = self.init_weights([10,2],"W_mu")
             W_sigma = self.init_weights([10,2],"W_sigma")
             
-            mu = tf.multiply(tf.nn.tanh(tf.matmul(eta_net,W_mu)),self.action_bound)
-            log_sigma = tf.multiply(tf.nn.tanh(tf.matmul(eta_net,W_sigma)),self.variance_bound)
-            #mu = tf.matmul(eta_net,W_mu)
-            #log_sigma = tf.matmul(eta_net,W_sigma)
-            
-            ## apply gradient clipping:
-            #mu = tf.clip_by_norm(mu,self.action_bound)
-            #log_sigma = tf.clip_by_norm(log_sigma,self.variance_bound)
+            mu = tf.multiply(tf.nn.tanh(tf.matmul(eta_net,W_mu)),self.bound)
+            log_sigma = tf.multiply(tf.nn.tanh(tf.matmul(eta_net,W_sigma)),self.bound)
             
         return mu, log_sigma
     
@@ -187,10 +186,6 @@ class agent_cognition:
         dist = tf.contrib.distributions.MultivariateNormalDiag(mu, tf.exp(log_sigma))
                 
         return dist.log_prob(self.source_action)
-    
-    def map_decoder_loss(self):
-        
-        return tf.square((self.source_action-self.decoder_mu)/tf.exp(self.decoder_log_sigma))
     
     def decoder_actions(self,ss_):
         
