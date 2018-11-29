@@ -7,8 +7,6 @@ Created on Sat Jan 20 18:56:50 2018
 """
 import numpy as np
 import tensorflow as tf
-from keras import backend as K
-from keras.optimizers import SGD,Adam
 
 def get_trainable_variables(key):
     with tf.variable_scope(key):
