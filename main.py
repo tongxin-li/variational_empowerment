@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from agent import agent_cognition
 from square_env import square_env
-from utils import dual_opt, action_states
+from utils import action_states
 from visualisation import heatmap
 
 ## set random seed:
@@ -23,8 +23,9 @@ tf.set_random_seed(42)
 horizon = 3
 seed = 42
 bound = 1.0
-iters = 20000 
+iters = 10000 
 batch_size = 50
+lr_1, lr_2 = 0.01,0.01
 
 # define environment:
 env = square_env(duration=horizon,radius=0.5,dimension=2*(horizon-1.0))
@@ -33,42 +34,20 @@ def main():
         
     with tf.Session() as sess:
                 
-        A = agent_cognition(horizon,sess,seed,bound)   
-            
-        ### define the decoder, critic and source:
-        log_decoder = A.decoder()
-        E = A.empowerment_critic()
-        log_source = A.source()
-                
-        # define a placeholder for beta values in the squared loss:
-        beta =tf.placeholder(tf.float32, [None, 1])       
-        
-        ### it might be a good idea to regularise the squared loss:
-        squared_loss = tf.reduce_mean(tf.square(beta*log_decoder-E-log_source))
-        decoder_loss = tf.reduce_mean(tf.multiply(tf.constant(-1.0),log_decoder))
+        A = agent_cognition(lr_1,lr_2,horizon,sess,seed,bound)          
         
         ### define beta schedule:
         betas = 1./np.array([min(0.001 + i/iters,1) for i in range(iters)])
         
         ## define the inverse probability to learn from randomness: 
-        N = min(iters,10000)
+        inverse_prob = betas
+        #N = min(iters,10000)
         
-        inverse_prob = np.hstack((1./np.array([min(0.001 + i/N,1) for i in range(N)]),np.ones(iters-N)))
-                
-        ### define the optimiser:
-        fast_optimizer = tf.train.AdagradOptimizer(0.01)
-        slow_optimizer = tf.train.AdagradOptimizer(0.01)
-        
-        train_decoder = fast_optimizer.minimize(decoder_loss)
-        
-        ### define a dual optimizatio method for critic and source:
-        train_critic_and_source = dual_opt("critic", "source", squared_loss, slow_optimizer)
+        #inverse_prob = np.hstack((1./np.array([min(0.001 + i/N,1) for i in range(N)]),np.ones(iters-N)))
         
         ### initialise the variables:
-        sess.run(tf.global_variables_initializer())
-        
-        squared_losses, decoder_losses = np.zeros(iters), np.zeros(iters)
-                        
+        sess.run(A.init_g)
+                                
         for count in range(iters):
             
             ## reset the environment:
@@ -96,22 +75,17 @@ def main():
                 mini_batch[horizon*i:horizon*(i+1)] = axx_
                 
             train_feed_1 = {A.decoder_input_n : mini_batch,A.source_action : mini_batch[:,0:2]}
-            sess.run(train_decoder,feed_dict = train_feed_1)
+            sess.run(A.train_decoder,feed_dict = train_feed_1)
                 
             # train source and critic:
-            train_feed_2 = {beta: betas[count].reshape((1,1)), A.current_state: mini_batch[:,2:4],A.decoder_input_n : mini_batch, A.source_input_n : mini_batch[:,0:4], A.source_action : mini_batch[:,0:2]}
-            sess.run(train_critic_and_source,feed_dict = train_feed_2)
-                
-            squared_losses[count] = sess.run(squared_loss,feed_dict = train_feed_2)
-            decoder_losses[count] = sess.run(decoder_loss,feed_dict = train_feed_1)
+            train_feed_2 = {A.beta: betas[count].reshape((1,1)), A.current_state: mini_batch[:,2:4],A.decoder_input_n : mini_batch, A.source_input_n : mini_batch[:,0:4], A.source_action : mini_batch[:,0:2]}
+            sess.run(A.train_critic_and_source,feed_dict = train_feed_2)
                         
             folder = "/Users/aidanrockea/Desktop/vime/images/expt_8/"
             
             if count % 500 == 0:   
-                heatmap(0.1,sess,A,E,env,count,folder)
-                
-        plt.plot(squared_losses)        
-        
+                heatmap(0.1,sess,A,env,count,folder)
+                        
         
 if __name__ == "__main__":
     main()

@@ -12,14 +12,6 @@ def get_trainable_variables(key):
     with tf.variable_scope(key):
         return tf.trainable_variables()
     
-def gradient_norm(sess,name,loss,feed):
-    
-    var = tf.trainable_variables(name)
-    #ix = np.random.choice(len(var))
-    gradients = tf.norm(tf.gradients(loss,var[0])[0])
-    
-    return sess.run(gradients, feed_dict=feed)
-
 def dual_opt(var_name_1, var_name_2, loss, optimizer):
     
     vars_1 = tf.get_collection(key = tf.GraphKeys.TRAINABLE_VARIABLES,
@@ -38,4 +30,14 @@ def action_states(env,agent,actions):
     S = np.repeat(ss_,agent.horizon,axis=0)
             
     return np.concatenate((actions,S),axis=1)
+
+def gradient_norm(sess,name,loss,feed):
+    
+    var = tf.trainable_variables(name)
+    
+    gradients = tf.gradients(loss,[var[0]])[0]
+    
+    norm = tf.norm(gradients)
+        
+    return sess.run(norm, feed_dict=feed)
     

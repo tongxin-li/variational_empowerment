@@ -8,6 +8,7 @@ Created on Sat Dec 30 10:46:54 2017
 import tensorflow as tf
 import tensorflow_probability as tfp
 import numpy as np
+from utils import dual_opt
 
 class agent_cognition:
     
@@ -16,7 +17,7 @@ class agent_cognition:
         Here we assume that env refers to an initialised environment class. 
     """
     
-    def __init__(self,planning_horizon,sess,seed, bound):
+    def __init__(self,lr_1,lr_2,planning_horizon,sess,seed, bound):
         self.sess = sess
         self.seed = seed
         self.horizon = planning_horizon        
@@ -24,12 +25,49 @@ class agent_cognition:
         
         self.current_state = tf.placeholder(tf.float32, [None, 2])
         self.source_action = tf.placeholder(tf.float32, [None, 2])
+        # define a placeholder for beta values in the squared loss:
+        self.beta = tf.placeholder(tf.float32, [None, 1])
         
+        ## define empowerment critic:
+        self.emp = self.empowerment_critic()
+                
+        ## define source:
         self.source_input_n = tf.placeholder(tf.float32, [None, 4])
-        self.decoder_input_n = tf.placeholder(tf.float32, [None, 6])
-                        
         self.src_mu, self.src_log_sigma = self.source_dist_n()
+        self.src_dist = tfp.distributions.MultivariateNormalDiag(self.src_mu, \
+                                                             tf.exp(self.src_log_sigma))
+                            
+        self.log_src = self.src_dist.log_prob(self.source_action)
+        
+        
+        ## define decoder:
+        self.decoder_input_n = tf.placeholder(tf.float32, [None, 6])
         self.decoder_mu, self.decoder_log_sigma = self.decoder_dist_n()
+        
+        self.decoder_dist = tfp.distributions.MultivariateNormalDiag(self.decoder_mu, \
+                                                             tf.exp(self.decoder_log_sigma))
+        
+        self.log_decoder = self.decoder_dist.log_prob(self.source_action)
+        
+        ## define losses:
+        self.decoder_loss = tf.reduce_mean(tf.multiply(tf.constant(-1.0), \
+                               self.decoder_dist.log_prob(self.source_action)))
+        
+        self.squared_loss = tf.reduce_mean(tf.square(self.beta*self.log_decoder-\
+                                                     self.emp-self.log_src))
+        
+        ### define the optimisers:
+        self.fast_optimizer = tf.train.AdagradOptimizer(lr_1)
+        self.slow_optimizer = tf.train.AdagradOptimizer(lr_2)
+        
+        self.train_decoder = self.fast_optimizer.minimize(self.decoder_loss)
+        
+        ### define a dual optimizatio method for critic and source:
+        self.train_critic_and_source = dual_opt("critic", "source", self.squared_loss, \
+                                                self.slow_optimizer)
+        
+    
+        self.init_g = tf.global_variables_initializer() 
     
     def init_weights(self,shape,var_name):
         """
@@ -87,7 +125,7 @@ class agent_cognition:
             exploration distribution. 
         """
         
-        with tf.variable_scope("source"):
+        with tf.variable_scope("source",reuse=tf.AUTO_REUSE):
             
             tf.set_random_seed(self.seed)
             
@@ -140,15 +178,6 @@ class agent_cognition:
             actions[i] = self.sampler(mu, log_sigma)
                     
         return actions
-
-
-    def source(self):
-
-        mu, log_sigma = self.src_mu, self.src_log_sigma
-            
-        dist = tfp.distributions.MultivariateNormalDiag(mu, tf.exp(log_sigma))
-                
-        return tf.log(dist.prob(self.source_action)+tf.constant(1e-8))
         
     def decoder_dist_n(self): 
         
@@ -157,7 +186,7 @@ class agent_cognition:
             planning distribution. 
         """
         
-        with tf.variable_scope("decoder"):
+        with tf.variable_scope("decoder",reuse=tf.AUTO_REUSE):
             
             tf.set_random_seed(self.seed)
             
@@ -178,15 +207,6 @@ class agent_cognition:
             log_sigma = tf.multiply(tf.nn.tanh(tf.matmul(eta_net,W_sigma)),self.bound)
             
         return mu, log_sigma
-    
-    
-    def decoder(self):
-        
-        mu, log_sigma = self.decoder_mu, self.decoder_log_sigma
-                
-        dist = tfp.distributions.MultivariateNormalDiag(mu, tf.exp(log_sigma))
-                
-        return dist.log_prob(self.source_action)
     
     def decoder_actions(self,ss_):
         

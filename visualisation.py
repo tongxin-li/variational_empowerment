@@ -12,7 +12,7 @@ import os
 import imageio
 import re
 
-def heatmap(res,sess,agent,critic,env,num_image,folder):
+def heatmap(res,sess,agent,env,num_image,folder):
     """
     A function which plots a heatmap of the agent's empowerment critic at
     a particular resolution. 
@@ -31,7 +31,7 @@ def heatmap(res,sess,agent,critic,env,num_image,folder):
     D = env.dimension
     xy = np.mgrid[0:int(D):res, 0:int(D):res].reshape(2,-1).T
     
-    values = sess.run(critic, feed_dict={agent.current_state: xy})    
+    values = sess.run(agent.emp, feed_dict={agent.current_state: xy})    
     sns.heatmap(values.reshape((int(D/res),int(D/res))),xticklabels=False,yticklabels=False)
     
     plt.savefig(folder+str(num_image)+".png")
