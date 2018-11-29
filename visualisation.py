@@ -138,7 +138,6 @@ def spatial_histogram(env):
     
     plt.show()
     
-"""
 def sort_files(l):
 
   convert = lambda text: float(text) if text.isdigit() else text
@@ -163,4 +162,3 @@ def create_gif(folder,gif_destination):
         images.append(imageio.imread(filename))
         
     imageio.mimsave(gif_destination+'GIF.gif', images,duration = 2)
-"""

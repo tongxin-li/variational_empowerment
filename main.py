@@ -21,32 +21,36 @@ tf.set_random_seed(42)
 
 # define training parameters:
 horizon = 3
-seed = 997
+seed = 42
 bound = 1.0
 iters = 10000 
-batch_size = 32
-lr_1, lr_2 = 0.01,0.01
+batch_size = 50
+lr = 0.01
+prob = 1.0
 
 ## define folder where things get saved:
-folder = "/Users/aidanrockea/Desktop/vime/images/expt_4/"
+folder = "/Users/aidanrockea/Desktop/vime/images/expt_2/"
 
 # define environment:
 env = square_env(duration=horizon,radius=0.5,dimension=2*(horizon-1.0))
 
 def main():
+    
+    global lr
         
     with tf.Session() as sess:
                 
-        A = agent_cognition(lr_1,lr_2,horizon,sess,seed,bound)          
+        A = agent_cognition(horizon,sess,seed,bound)          
         
         ### define beta schedule:
         betas = 1./np.array([min(0.001 + i/iters,1) for i in range(iters)])
         
         ## define the inverse probability to learn from randomness: 
-        inverse_prob = betas
         #N = min(iters,10000)
         
         #inverse_prob = np.hstack((1./np.array([min(0.001 + i/N,1) for i in range(N)]),np.ones(iters-N)))
+        
+        inverse_prob = betas
         
         ### initialise the variables:
         sess.run(A.init_g)
@@ -81,9 +85,12 @@ def main():
             mu = (horizon-1.0) ## mean of U(0,dimension)
             sigma = ((2*mu)**2)/12 ## variance of U(0,dimension)
             mini_batch[:,2:6] = (mini_batch[:,2:6] - mu)/sigma
+            
+            #if count % 10000 == 0:
+            #    lr = lr // 10
                 
             train_feed_1 = {A.decoder_input_n : mini_batch,A.source_action : mini_batch[:,0:2],\
-                            A.prob : 1.0}
+                            A.prob : prob,A.lr:lr}
             
             sess.run(A.train_decoder,feed_dict = train_feed_1)
                 
@@ -91,7 +98,7 @@ def main():
             train_feed_2 = {A.beta: betas[count].reshape((1,1)), A.current_state: mini_batch[:,2:4],\
                             A.decoder_input_n : mini_batch, A.source_input_n : mini_batch[:,0:4], \
                             A.source_action : mini_batch[:,0:2],
-                            A.prob : 1.0}
+                            A.prob : prob,A.lr:lr}
             
             sess.run(A.train_critic_and_source,feed_dict = train_feed_2)
             
