@@ -27,6 +27,9 @@ iters = 10000
 batch_size = 32
 lr_1, lr_2 = 0.01,0.01
 
+## define folder where things get saved:
+folder = "/Users/aidanrockea/Desktop/vime/images/expt_4/"
+
 # define environment:
 env = square_env(duration=horizon,radius=0.5,dimension=2*(horizon-1.0))
 
@@ -91,8 +94,6 @@ def main():
                             A.prob : 1.0}
             
             sess.run(A.train_critic_and_source,feed_dict = train_feed_2)
-                        
-            folder = "/Users/aidanrockea/Desktop/vime/images/expt_4/"
             
             if count % 1000 == 0:   
                 heatmap(0.1,sess,A,env,count,folder)
