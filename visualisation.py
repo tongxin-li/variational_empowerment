@@ -31,8 +31,14 @@ def heatmap(res,sess,agent,env,num_image,folder):
     D = env.dimension
     xy = np.mgrid[0:int(D):res, 0:int(D):res].reshape(2,-1).T
     
-    values = sess.run(agent.emp, feed_dict={agent.current_state: xy})    
-    sns.heatmap(values.reshape((int(D/res),int(D/res))),xticklabels=False,yticklabels=False)
+    ## normalise the state representations:
+    mu = D/2 ## mean of U(0,dimension)
+    sigma = ((2*mu)**2)/12 ## variance of U(0,dimension)
+    xy_ = (xy - mu)/sigma
+    
+    values = sess.run(agent.emp, feed_dict={agent.current_state: xy_})    
+    sns.heatmap(values.reshape((int(D/res),int(D/res))),xticklabels=False,\
+                yticklabels=False,cmap="YlGnBu")
     
     plt.savefig(folder+str(num_image)+".png")
     
@@ -132,11 +138,9 @@ def spatial_histogram(env):
     
     plt.show()
     
-
+"""
 def sort_files(l):
-  """
-      Sorting files in numerical order.
-  """
+
   convert = lambda text: float(text) if text.isdigit() else text
   alphanum = lambda key: [ convert(c) for c in re.split('([-+]?[0-9]*\.?[0-9]*)', key) ]
   l.sort( key=alphanum )
@@ -159,3 +163,4 @@ def create_gif(folder,gif_destination):
         images.append(imageio.imread(filename))
         
     imageio.mimsave(gif_destination+'GIF.gif', images,duration = 2)
+"""

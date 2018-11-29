@@ -10,7 +10,7 @@ Created on Sun Feb 11 10:32:53 2018
 import tensorflow as tf
 import numpy as np
 
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from agent import agent_cognition
 from square_env import square_env
 from utils import action_states
@@ -21,10 +21,10 @@ tf.set_random_seed(42)
 
 # define training parameters:
 horizon = 3
-seed = 42
+seed = 997
 bound = 1.0
 iters = 10000 
-batch_size = 50
+batch_size = 32
 lr_1, lr_2 = 0.01,0.01
 
 # define environment:
@@ -73,17 +73,28 @@ def main():
                 axx_ = action_states(env,A,actions)
                 
                 mini_batch[horizon*i:horizon*(i+1)] = axx_
+            
+            ## normalise the state representations:
+            mu = (horizon-1.0) ## mean of U(0,dimension)
+            sigma = ((2*mu)**2)/12 ## variance of U(0,dimension)
+            mini_batch[:,2:6] = (mini_batch[:,2:6] - mu)/sigma
                 
-            train_feed_1 = {A.decoder_input_n : mini_batch,A.source_action : mini_batch[:,0:2]}
+            train_feed_1 = {A.decoder_input_n : mini_batch,A.source_action : mini_batch[:,0:2],\
+                            A.prob : 1.0}
+            
             sess.run(A.train_decoder,feed_dict = train_feed_1)
                 
             # train source and critic:
-            train_feed_2 = {A.beta: betas[count].reshape((1,1)), A.current_state: mini_batch[:,2:4],A.decoder_input_n : mini_batch, A.source_input_n : mini_batch[:,0:4], A.source_action : mini_batch[:,0:2]}
+            train_feed_2 = {A.beta: betas[count].reshape((1,1)), A.current_state: mini_batch[:,2:4],\
+                            A.decoder_input_n : mini_batch, A.source_input_n : mini_batch[:,0:4], \
+                            A.source_action : mini_batch[:,0:2],
+                            A.prob : 1.0}
+            
             sess.run(A.train_critic_and_source,feed_dict = train_feed_2)
                         
-            folder = "/Users/aidanrockea/Desktop/vime/images/expt_8/"
+            folder = "/Users/aidanrockea/Desktop/vime/images/expt_4/"
             
-            if count % 500 == 0:   
+            if count % 1000 == 0:   
                 heatmap(0.1,sess,A,env,count,folder)
                         
         

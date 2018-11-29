@@ -28,6 +28,9 @@ class agent_cognition:
         # define a placeholder for beta values in the squared loss:
         self.beta = tf.placeholder(tf.float32, [None, 1])
         
+        ## define a placeholder for the dropout value:
+        self.prob = tf.placeholder_with_default(1.0, shape=(),name='prob')
+        
         ## define empowerment critic:
         self.emp = self.empowerment_critic()
                 
@@ -85,9 +88,12 @@ class agent_cognition:
         """
         
         h = tf.nn.elu(tf.add(tf.matmul(X, w_h),bias_1))
-        h2 = tf.nn.elu(tf.add(tf.matmul(h, w_h2),bias_2))
+        drop_1 = tf.nn.dropout(h, self.prob)
         
-        return tf.matmul(h2, w_o)
+        h2 = tf.nn.elu(tf.add(tf.matmul(drop_1, w_h2),bias_2))
+        drop_2 = tf.nn.dropout(h2, self.prob)
+        
+        return tf.matmul(drop_2, w_o)
     
     def empowerment_critic(self):
         """
@@ -114,9 +120,12 @@ class agent_cognition:
             bias_3 = self.init_weights([1],"bias_3")
                 
             h = tf.nn.elu(tf.add(tf.matmul(self.current_state, w_h),bias_1))
-            h2 = tf.nn.elu(tf.add(tf.matmul(h, w_h2),bias_2))
+            drop_1 = tf.nn.dropout(h, self.prob)
             
-        return tf.nn.elu(tf.add(tf.matmul(h2, w_o),bias_3))
+            h2 = tf.nn.elu(tf.add(tf.matmul(drop_1, w_h2),bias_2))
+            drop_2 = tf.nn.dropout(h2, self.prob)
+            
+        return tf.nn.elu(tf.add(tf.matmul(drop_2, w_o),bias_3))
         
     def source_dist_n(self):
         
@@ -142,8 +151,9 @@ class agent_cognition:
             W_mu = self.init_weights([10,2],"W_mu")
             W_sigma = self.init_weights([10,2],"W_sigma")
             
-            mu = tf.multiply(tf.nn.tanh(tf.matmul(eta_net,W_mu)),self.bound)
+            mu = tf.matmul(eta_net,W_mu)
             log_sigma = tf.multiply(tf.nn.tanh(tf.matmul(eta_net,W_sigma)),self.bound)
+            
         
         return mu, log_sigma
     
@@ -203,8 +213,9 @@ class agent_cognition:
             W_mu = self.init_weights([10,2],"W_mu")
             W_sigma = self.init_weights([10,2],"W_sigma")
             
-            mu = tf.multiply(tf.nn.tanh(tf.matmul(eta_net,W_mu)),self.bound)
+            mu = tf.matmul(eta_net,W_mu)
             log_sigma = tf.multiply(tf.nn.tanh(tf.matmul(eta_net,W_sigma)),self.bound)
+                    
             
         return mu, log_sigma
     
