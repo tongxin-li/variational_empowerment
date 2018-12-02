@@ -28,16 +28,18 @@ def heatmap(res,sess,agent,env,num_image,folder):
         raise Warning("resolution must satisfy 0 < res <= 1")
     
     ## create mesh grid:
-    D = env.dimension
-    xy = np.mgrid[0:int(D):res, 0:int(D):res].reshape(2,-1).T
+    R, D = env.R, env.dimension
+    xy = np.mgrid[R:int(D)-R:res, R:int(D)-R:res].reshape(2,-1).T
+    L = int((D-2*R)/res)
     
     ## normalise the state representations:
-    mu = D/2 ## mean of U(0,dimension)
-    sigma = ((2*mu)**2)/12 ## variance of U(0,dimension)
+    mu = env.dimension/2.0 - R ## mean of U(R,dimension-R)
+    sigma = ((2*mu)**2)/12 ## variance of U(R,dimension-R)
     xy_ = (xy - mu)/sigma
+    #xy_ = xy
     
     values = sess.run(agent.emp, feed_dict={agent.current_state: xy_})    
-    sns.heatmap(values.reshape((int(D/res),int(D/res))),xticklabels=False,\
+    sns.heatmap(values.reshape(L,L),xticklabels=False,\
                 yticklabels=False,cmap="YlGnBu")
     
     plt.savefig(folder+str(num_image)+".png")

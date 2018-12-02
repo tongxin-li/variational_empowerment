@@ -20,24 +20,23 @@ from visualisation import heatmap
 tf.set_random_seed(42)
 
 # define training parameters:
-horizon = 3
+horizon = 2
 seed = 42
 bound = 1.0
-iters = 10000 
-batch_size = 50
+iters = 10000
+batch_size = 32
 lr = 0.01
 prob = 1.0
+R = 0.5
 
 ## define folder where things get saved:
-folder = "/Users/aidanrockea/Desktop/vime/images/expt_2/"
+folder = "/Users/aidanrockea/Desktop/vime/heat_maps/expt_7/"
 
 # define environment:
-env = square_env(duration=horizon,radius=0.5,dimension=2*(horizon-1.0))
+env = square_env(duration=horizon,radius=R,dimension=2*horizon*R)
 
 def main():
-    
-    global lr
-        
+            
     with tf.Session() as sess:
                 
         A = agent_cognition(horizon,sess,seed,bound)          
@@ -45,11 +44,7 @@ def main():
         ### define beta schedule:
         betas = 1./np.array([min(0.001 + i/iters,1) for i in range(iters)])
         
-        ## define the inverse probability to learn from randomness: 
-        #N = min(iters,10000)
-        
-        #inverse_prob = np.hstack((1./np.array([min(0.001 + i/N,1) for i in range(N)]),np.ones(iters-N)))
-        
+        ## define inverse probability:
         inverse_prob = betas
         
         ### initialise the variables:
@@ -63,15 +58,23 @@ def main():
             
             mini_batch = np.zeros((batch_size*horizon,6))
             
+            ## define mean and variance of environment:
+            mu = env.dimension/2.0 - R ## mean of U(0,dimension)
+            sigma = ((2*mu)**2)/12 ## variance of U(R,dimension-R)
+            
             ### train our agent on a minibatch of recent experience:
             for i in range(batch_size):
                 
-                env.iter = 1
+                env.iter = 0
                                             
                 if np.random.rand() > 1/inverse_prob[count]:
                     actions = A.random_actions()
                 else:
-                    actions = A.source_actions(env.state_seq[env.iter])
+                    normalised_state = (env.state_seq[env.iter]-mu)/sigma
+                    
+                    actions = A.source_actions(normalised_state)
+                    
+                env.iter += 1
                         
                 ## get responses from the environment:
                 env.env_response(actions,A.horizon)
@@ -82,12 +85,7 @@ def main():
                 mini_batch[horizon*i:horizon*(i+1)] = axx_
             
             ## normalise the state representations:
-            mu = (horizon-1.0) ## mean of U(0,dimension)
-            sigma = ((2*mu)**2)/12 ## variance of U(0,dimension)
             mini_batch[:,2:6] = (mini_batch[:,2:6] - mu)/sigma
-            
-            #if count % 10000 == 0:
-            #    lr = lr // 10
                 
             train_feed_1 = {A.decoder_input_n : mini_batch,A.source_action : mini_batch[:,0:2],\
                             A.prob : prob,A.lr:lr}
@@ -102,7 +100,7 @@ def main():
             
             sess.run(A.train_critic_and_source,feed_dict = train_feed_2)
             
-            if count % 1000 == 0:   
+            if count % 500 == 0:   
                 heatmap(0.1,sess,A,env,count,folder)
                         
         
