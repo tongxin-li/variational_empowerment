@@ -20,13 +20,13 @@ from visualisation import heatmap
 tf.set_random_seed(42)
 
 # define training parameters:
-horizon = 2
+horizon = 3
 seed = 42
 bound = 1.0
 iters = 10000
-batch_size = 32
+batch_size = 50
 lr = 0.01
-prob = 1.0
+prob = 0.8
 R = 0.5
 
 ## define folder where things get saved:
