@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Sun Dec 23 12:49:25 2018
+
+@author: aidanrockea
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Sun Feb 11 10:32:53 2018
 
 @author: aidanrocke & ildefonsmagrans
 """
+
+## no net action!
 
 #import random
 import tensorflow as tf
@@ -22,12 +32,12 @@ tf.set_random_seed(42)
 # define training parameters:
 horizon = 4
 seed = 42
-bound = 1.0
+bound = 0.5
 iters = 10000
 batch_size = 50
 lr = 0.01
 prob = 0.8
-R = 0.5
+R = 1.0
 
 ## define folder where things get saved:
 folder = "/Users/aidanrockea/Desktop/vime/heat_maps/expt_7/"
@@ -35,9 +45,9 @@ folder = "/Users/aidanrockea/Desktop/vime/heat_maps/expt_7/"
 export_dir = "/Users/aidanrockea/Desktop/vime/checkpoints/"
 
 # define environment:
-env = square_env(duration=horizon,radius=R,dimension=2*horizon*R)   
+env = square_env(duration=horizon,radius=R,dimension=2*(horizon-1))
 
-tf.reset_default_graph()
+#tf.reset_default_graph()
 
 A = agent_cognition(horizon,seed,bound)  
 
@@ -64,6 +74,7 @@ def main():
             env.random_initialisation()
             
             mini_batch = np.zeros((batch_size*horizon,6))
+            action_batch = np.zeros((batch_size*horizon,2))
             
             ## define mean and variance of environment:
             mu = env.dimension/2.0 - R ## mean of U(R,dimension-R)
@@ -75,13 +86,19 @@ def main():
                 env.iter = 0
                                             
                 if np.random.rand() > 1/inverse_prob[count]:
-                    actions = A.random_actions()
+                    actions = A.random_actions()            
+                    
+                    net_actions = np.cumsum(actions,0)
+                    
                 else:
                     state = (env.state_seq[env.iter]-mu)/sigma
                     #state = env.state_seq[env.iter]
                     
                     ## get source actions:
                     actions = np.zeros((A.horizon,2))
+                    
+                    ## get net actions:
+                    net_actions = np.zeros((A.horizon,2))
                                    
                     for i in range(1,A.horizon):
                                                 
@@ -89,22 +106,27 @@ def main():
             
                         src_mu, log_sigma = sess.run([A.src_mu,A.src_log_sigma], feed_dict={ A.source_input_n: AS_n.reshape((1,4))})
                         
-                        actions[i] = A.sampler(src_mu, log_sigma) + actions[i-1]
+                        ## source action:
+                        actions[i] = A.sampler(src_mu, log_sigma)
+                        
+                        ## net action:
+                        net_actions[i] = actions[i] + net_actions[i-1]
                     
                 env.iter += 1
-                        
+                
                 ## get responses from the environment:
                 env.env_response(actions,A.horizon)
                                     
                 ## group actions, initial state, and final state:                        
-                axx_ = action_states(env,A,actions)
+                axx_ = action_states(env,A,net_actions)
                 
                 mini_batch[horizon*i:horizon*(i+1)] = axx_
+                action_batch[horizon*i:horizon*(i+1)] = actions
             
             ## normalise the state representations:
             mini_batch[:,2:6] = (mini_batch[:,2:6] - mu)/sigma
-                
-            train_feed_1 = {A.decoder_input_n : mini_batch,A.source_action : mini_batch[:,0:2],\
+            
+            train_feed_1 = {A.decoder_input_n : mini_batch,A.source_action : action_batch,\
                             A.prob : prob,A.lr:lr}
             
             sess.run(A.train_decoder,feed_dict = train_feed_1)
@@ -112,7 +134,7 @@ def main():
             # train source and critic:
             train_feed_2 = {A.beta: betas[count].reshape((1,1)), A.current_state: mini_batch[:,2:4],\
                             A.decoder_input_n : mini_batch, A.source_input_n : mini_batch[:,0:4], \
-                            A.source_action : mini_batch[:,0:2],
+                            A.source_action : action_batch,
                             A.prob : prob,A.lr:lr}
             
             sess.run(A.train_critic_and_source,feed_dict = train_feed_2)
