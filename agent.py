@@ -17,8 +17,7 @@ class agent_cognition:
         Here we assume that env refers to an initialised environment class. 
     """
     
-    def __init__(self,planning_horizon,sess,seed, bound):
-        self.sess = sess
+    def __init__(self,planning_horizon,seed, bound):
         self.seed = seed
         self.horizon = planning_horizon        
         self.bound = bound
@@ -38,13 +37,13 @@ class agent_cognition:
         self.emp = self.empowerment_critic()
                 
         ## define source:
-        self.source_input_n = tf.placeholder(tf.float32, [None, 4])
+        self.source_input_n = tf.placeholder(tf.float32, [None, 4],name='src_input')
+        
         self.src_mu, self.src_log_sigma = self.source_dist_n()
         self.src_dist = tfp.distributions.MultivariateNormalDiag(self.src_mu, \
                                                              tf.exp(self.src_log_sigma))
                             
-        self.log_src = self.src_dist.log_prob(self.source_action)
-        
+        self.log_src = tf.identity(self.src_dist.log_prob(self.source_action),name='log_src')
         
         ## define decoder parameters and log probability:
         self.decoder_input_n = tf.placeholder(tf.float32, [None, 6])
@@ -56,8 +55,7 @@ class agent_cognition:
         self.log_decoder = self.decoder_dist.log_prob(self.source_action)
         
         ## define losses:
-        self.decoder_loss = tf.reduce_mean(-1.0*self.decoder_dist.log_prob(self.source_action))
-        
+        self.decoder_loss = tf.reduce_mean(-1.0*self.log_decoder)
         self.squared_loss = tf.reduce_mean(tf.square(self.beta*self.log_decoder-self.emp-self.log_src))
         
         ### define the optimisers:
@@ -159,9 +157,8 @@ class agent_cognition:
             W_mu = self.init_weights([10,2],"W_mu")
             W_sigma = self.init_weights([10,2],"W_sigma")
             
-            mu = tf.matmul(Tau,W_mu)
+            mu = tf.multiply(tf.nn.tanh(tf.matmul(Tau,W_mu)),self.bound)
             log_sigma = tf.multiply(tf.nn.tanh(tf.matmul(Tau,W_sigma)),self.bound)
-            
         
         return mu, log_sigma
     
@@ -177,26 +174,6 @@ class agent_cognition:
         """
         
         return np.random.normal(0,self.bound,size = (self.horizon,2))
-        
-    
-    def source_actions(self,state):
-        
-        actions = np.zeros((self.horizon,2))
-        
-        ### add a zero action to the state:
-        AS_0 = np.concatenate((np.zeros(2),state))
-        
-        mu, log_sigma = self.sess.run([self.src_mu,self.src_log_sigma], feed_dict={ self.source_input_n: AS_0.reshape((1,4))})
-                                                
-        for i in range(1,self.horizon):
-                        
-            AS_n = np.concatenate((actions[i-1],state))
-            
-            mu, log_sigma = self.sess.run([self.src_mu,self.src_log_sigma], feed_dict={ self.source_input_n: AS_n.reshape((1,4))})
-                        
-            actions[i] = self.sampler(mu, log_sigma)
-                    
-        return actions
         
     def decoder_dist_n(self): 
         
@@ -227,46 +204,8 @@ class agent_cognition:
             W_mu = self.init_weights([10,2],"W_mu")
             W_sigma = self.init_weights([10,2],"W_sigma")
             
-            mu = tf.matmul(Tau,W_mu)
+            mu = tf.multiply(tf.nn.tanh(tf.matmul(Tau,W_mu)),self.bound)
             log_sigma = tf.multiply(tf.nn.tanh(tf.matmul(Tau,W_sigma)),self.bound)
                     
             
         return mu, log_sigma
-    
-    def decoder_actions(self,ss_):
-        
-        actions = np.zeros((self.horizon,2))
-        
-        ### add a zero action to the state:
-        SS_0 = np.concatenate((np.zeros(2),ss_))
-        
-        mu, log_sigma = self.sess.run([self.decoder_mu,self.decoder_log_sigma], feed_dict={ self.decoder_input_n: SS_0.reshape((1,6))})
-                                                
-        for i in range(1,self.horizon):
-                        
-            SS_n = np.concatenate((actions[i-1],ss_))
-    
-            mu, log_sigma = self.sess.run([self.decoder_mu,self.decoder_log_sigma], feed_dict={ self.decoder_input_n: SS_n.reshape((1,6))})
-                                
-            actions[i] = self.sampler(mu, log_sigma)
-                    
-        return actions
-    
-    def mean_decoder_actions(self,ss_):
-        
-        actions, sigmas = np.zeros((self.horizon,2)), np.zeros((self.horizon,2))
-        
-        ### add a zero action to the state:
-        SS_0 = np.concatenate((np.zeros(2),ss_))
-        
-        mu, log_sigma = self.sess.run([self.decoder_mu,self.decoder_log_sigma], feed_dict={ self.decoder_input_n: SS_0.reshape((1,6))})
-                                                
-        for i in range(1,self.horizon):
-                        
-            SS_n = np.concatenate((actions[i-1],ss_))
-    
-            mu, log_sigma = self.sess.run([self.decoder_mu,self.decoder_log_sigma], feed_dict={ self.decoder_input_n: SS_n.reshape((1,6))})
-                                
-            actions[i], sigmas[i] = mu, np.exp(log_sigma)
-                    
-        return actions, sigmas

@@ -20,7 +20,7 @@ from visualisation import heatmap
 tf.set_random_seed(42)
 
 # define training parameters:
-horizon = 3
+horizon = 4
 seed = 42
 bound = 1.0
 iters = 10000
@@ -32,14 +32,21 @@ R = 0.5
 ## define folder where things get saved:
 folder = "/Users/aidanrockea/Desktop/vime/heat_maps/expt_7/"
 
+export_dir = "/Users/aidanrockea/Desktop/vime/checkpoints/"
+
 # define environment:
-env = square_env(duration=horizon,radius=R,dimension=2*horizon*R)
+env = square_env(duration=horizon,radius=R,dimension=2*(horizon-1))
+
+#tf.reset_default_graph()
+
+A = agent_cognition(horizon,seed,bound)  
+
+## define saver:
+#saver = tf.train.Saver()
 
 def main():
             
     with tf.Session() as sess:
-                
-        A = agent_cognition(horizon,sess,seed,bound)          
         
         ### define beta schedule:
         betas = 1./np.array([min(0.001 + i/iters,1) for i in range(iters)])
@@ -59,7 +66,7 @@ def main():
             mini_batch = np.zeros((batch_size*horizon,6))
             
             ## define mean and variance of environment:
-            mu = env.dimension/2.0 - R ## mean of U(0,dimension)
+            mu = env.dimension/2.0 - R ## mean of U(R,dimension-R)
             sigma = ((2*mu)**2)/12 ## variance of U(R,dimension-R)
             
             ### train our agent on a minibatch of recent experience:
@@ -70,9 +77,19 @@ def main():
                 if np.random.rand() > 1/inverse_prob[count]:
                     actions = A.random_actions()
                 else:
-                    normalised_state = (env.state_seq[env.iter]-mu)/sigma
+                    state = (env.state_seq[env.iter]-mu)/sigma
+                    #state = env.state_seq[env.iter]
                     
-                    actions = A.source_actions(normalised_state)
+                    ## get source actions:
+                    actions = np.zeros((A.horizon,2))
+                                   
+                    for i in range(1,A.horizon):
+                                                
+                        AS_n = np.concatenate((actions[i-1],state))
+            
+                        src_mu, log_sigma = sess.run([A.src_mu,A.src_log_sigma], feed_dict={ A.source_input_n: AS_n.reshape((1,4))})
+                        
+                        actions[i] = A.sampler(src_mu, log_sigma) + actions[i-1]
                     
                 env.iter += 1
                         
@@ -100,8 +117,12 @@ def main():
             
             sess.run(A.train_critic_and_source,feed_dict = train_feed_2)
             
+            #saver.save(sess,export_dir,global_step=count)
+            
             if count % 500 == 0:   
                 heatmap(0.1,sess,A,env,count,folder)
+                
+                
                         
         
 if __name__ == "__main__":
