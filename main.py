@@ -35,9 +35,9 @@ folder = "/Users/aidanrockea/Desktop/vime/heat_maps/expt_7/"
 export_dir = "/Users/aidanrockea/Desktop/vime/checkpoints/"
 
 # define environment:
-env = square_env(duration=horizon,radius=R,dimension=2*(horizon-1))
+env = square_env(duration=horizon,radius=R,dimension=2*horizon*R)   
 
-#tf.reset_default_graph()
+tf.reset_default_graph()
 
 A = agent_cognition(horizon,seed,bound)  
 
